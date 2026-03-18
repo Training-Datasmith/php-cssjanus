@@ -32,9 +32,9 @@ class CSSJanus {
 	private const TOKEN_RTL_TMP = '`TMPRTL`';
 	private const TOKEN_COMMENT = '`COMMENT`';
 
-	private static $patterns = null;
+	private static ?array $patterns = null;
 
-	private static function buildPatterns() {
+	private static function buildPatterns(): void {
 		if ( self::$patterns !== null ) {
 			return;
 		}
@@ -206,93 +206,82 @@ class CSSJanus {
 		// Detokenize stuff we tokenized before
 		$css = $comments->detokenize( $css );
 		$css = $noFlipClass->detokenize( $css );
-		$css = $noFlipSingle->detokenize( $css );
 
-		return $css;
+		return $noFlipSingle->detokenize( $css );
 	}
 
 	/**
-	 * Replace direction: ltr; with direction: rtl; and vice versa.
-	 *
-	 * The original implementation only does this inside body selectors
-	 * and misses "body\n{\ndirection:ltr;\n}". This function does not have
-	 * these problems.
-	 *
-	 * See https://code.google.com/p/cssjanus/issues/detail?id=15
-	 *
-	 * @param string $css
-	 * @return string
-	 */
-	private static function fixDirection( $css ) {
+     * Replace direction: ltr; with direction: rtl; and vice versa.
+     *
+     * The original implementation only does this inside body selectors
+     * and misses "body\n{\ndirection:ltr;\n}". This function does not have
+     * these problems.
+     *
+     * See https://code.google.com/p/cssjanus/issues/detail?id=15
+     *
+     * @param string $css
+     */
+    private static function fixDirection( $css ): string {
 		$css = preg_replace(
 			self::$patterns['direction_ltr'],
 			'$1' . self::TOKEN_TMP,
 			$css
 		);
 		$css = preg_replace( self::$patterns['direction_rtl'], '$1ltr', $css );
-		$css = str_replace( self::TOKEN_TMP, 'rtl', $css );
 
-		return $css;
+		return str_replace( self::TOKEN_TMP, 'rtl', $css );
 	}
 
 	/**
-	 * Replace 'ltr' with 'rtl' and vice versa in background URLs
-	 * @param string $css
-	 * @return string
-	 */
-	private static function fixLtrRtlInURL( $css ) {
+     * Replace 'ltr' with 'rtl' and vice versa in background URLs
+     * @param string $css
+     */
+    private static function fixLtrRtlInURL( $css ): string {
 		$css = preg_replace( self::$patterns['ltr_dir_selector'], '$1' . self::TOKEN_LTR_TMP . '$2', $css );
 		$css = preg_replace( self::$patterns['rtl_dir_selector'], '$1' . self::TOKEN_RTL_TMP . '$2', $css );
 		$css = preg_replace( self::$patterns['ltr_in_url'], self::TOKEN_TMP, $css );
 		$css = preg_replace( self::$patterns['rtl_in_url'], 'ltr', $css );
 		$css = str_replace( self::TOKEN_TMP, 'rtl', $css );
 		$css = str_replace( self::TOKEN_LTR_TMP, 'ltr', $css );
-		$css = str_replace( self::TOKEN_RTL_TMP, 'rtl', $css );
 
-		return $css;
+		return str_replace( self::TOKEN_RTL_TMP, 'rtl', $css );
 	}
 
 	/**
-	 * Replace 'left' with 'right' and vice versa in background URLs
-	 * @param string $css
-	 * @return string
-	 */
-	private static function fixLeftRightInURL( $css ) {
+     * Replace 'left' with 'right' and vice versa in background URLs
+     * @param string $css
+     */
+    private static function fixLeftRightInURL( $css ): string {
 		$css = preg_replace( self::$patterns['left_in_url'], self::TOKEN_TMP, $css );
 		$css = preg_replace( self::$patterns['right_in_url'], 'left', $css );
-		$css = str_replace( self::TOKEN_TMP, 'right', $css );
 
-		return $css;
+		return str_replace( self::TOKEN_TMP, 'right', $css );
 	}
 
 	/**
-	 * Flip rules like left: , padding-right: , etc.
-	 * @param string $css
-	 * @return string
-	 */
-	private static function fixLeftAndRight( $css ) {
+     * Flip rules like left: , padding-right: , etc.
+     * @param string $css
+     */
+    private static function fixLeftAndRight( $css ): string {
 		$css = preg_replace( self::$patterns['left'], self::TOKEN_TMP, $css );
 		$css = preg_replace( self::$patterns['right'], 'left', $css );
-		$css = str_replace( self::TOKEN_TMP, 'right', $css );
 
-		return $css;
+		return str_replace( self::TOKEN_TMP, 'right', $css );
 	}
 
 	/**
-	 * Flip East and West in rules like cursor: nw-resize;
-	 * @param string $css
-	 * @return string
-	 */
-	private static function fixCursorProperties( $css ) {
+     * Flip East and West in rules like cursor: nw-resize;
+     * @param string $css
+     */
+    private static function fixCursorProperties( $css ): string {
 		$css = preg_replace(
 			self::$patterns['cursor_east'],
 			'$1' . self::TOKEN_TMP,
 			$css
 		);
 		$css = preg_replace( self::$patterns['cursor_west'], '$1e-resize', $css );
-		$css = str_replace( self::TOKEN_TMP, 'w-resize', $css );
 
-		return $css;
+		return str_replace( self::TOKEN_TMP, 'w-resize', $css );
 	}
 
 	/**
@@ -307,10 +296,9 @@ class CSSJanus {
 	 * @param string $css
 	 * @return string
 	 */
-	private static function fixFourPartNotation( $css ) {
+	private static function fixFourPartNotation( $css ): ?string {
 		$css = preg_replace( self::$patterns['four_notation_quantity'], '$1$2$3$8$5$6$7$4$9', $css );
-		$css = preg_replace( self::$patterns['four_notation_color'], '$1$2$3$8$5$6$7$4$9', $css );
-		return $css;
+		return preg_replace( self::$patterns['four_notation_color'], '$1$2$3$8$5$6$7$4$9', $css );
 	}
 
 	/**
@@ -319,10 +307,10 @@ class CSSJanus {
 	 * @param string $css
 	 * @return string
 	 */
-	private static function fixBorderRadius( $css ) {
+	private static function fixBorderRadius( $css ): ?string {
 		return preg_replace_callback(
 			self::$patterns['border_radius'],
-			static function ( $matches ) {
+			static function ( $matches ): string {
 				$pre = $matches[1];
 				$firstGroup = array_filter( array_slice( $matches, 2, 4 ), 'strlen' );
 				$secondGroup = array_filter( array_slice( $matches, 6, 4 ), 'strlen' );
@@ -346,7 +334,7 @@ class CSSJanus {
 	 * @param array $values Matched values
 	 * @return string Flipped values
 	 */
-	private static function flipBorderRadiusValues( $values ) {
+	private static function flipBorderRadiusValues( array $values ): string {
 		switch ( count( $values ) ) {
 			case 4:
 				$values = [ $values[1], $values[0], $values[3], $values[2] ];
@@ -365,22 +353,22 @@ class CSSJanus {
 	}
 
 	/**
-	 * Flips the sign of a CSS value, possibly with a unit.
-	 *
-	 * We can't just negate the value with unary minus due to the units.
-	 *
-	 * @param string $cssValue
-	 * @return string
-	 */
-	private static function flipSign( $cssValue ) {
+     * Flips the sign of a CSS value, possibly with a unit.
+     *
+     * We can't just negate the value with unary minus due to the units.
+     *
+     * @return string
+     */
+    private static function flipSign( string $cssValue ) {
 		// Don't mangle zeroes
-		if ( floatval( $cssValue ) === 0.0 ) {
-			return $cssValue;
-		} elseif ( $cssValue[0] === '-' ) {
-			return substr( $cssValue, 1 );
-		} else {
-			return "-" . $cssValue;
-		}
+        if (floatval( $cssValue ) === 0.0) {
+            return $cssValue;
+        }
+        // Don't mangle zeroes
+		if ($cssValue[0] === '-') {
+            return substr( $cssValue, 1 );
+        }
+        return "-" . $cssValue;
 	}
 
 	/**
@@ -389,24 +377,14 @@ class CSSJanus {
 	 * @param string $css
 	 * @return string
 	 */
-	private static function fixShadows( $css ) {
-		$css = preg_replace_callback( self::$patterns['box_shadow'], function ( $matches ) {
-			return $matches[1] . self::flipSign( $matches[2] );
-		}, $css );
+	private static function fixShadows( $css ): ?string {
+		$css = preg_replace_callback( self::$patterns['box_shadow'], fn($matches) => $matches[1] . self::flipSign( $matches[2] ), $css );
 
-		$css = preg_replace_callback( self::$patterns['text_shadow1'], function ( $matches ) {
-			return $matches[1] . $matches[2] . $matches[3] . self::flipSign( $matches[4] );
-		}, $css );
+		$css = preg_replace_callback( self::$patterns['text_shadow1'], fn($matches) => $matches[1] . $matches[2] . $matches[3] . self::flipSign( $matches[4] ), $css );
 
-		$css = preg_replace_callback( self::$patterns['text_shadow2'], function ( $matches ) {
-			return $matches[1] . $matches[2] . $matches[3] . self::flipSign( $matches[4] );
-		}, $css );
+		$css = preg_replace_callback( self::$patterns['text_shadow2'], fn($matches) => $matches[1] . $matches[2] . $matches[3] . self::flipSign( $matches[4] ), $css );
 
-		$css = preg_replace_callback( self::$patterns['text_shadow3'], function ( $matches ) {
-			return $matches[1] . self::flipSign( $matches[2] );
-		}, $css );
-
-		return $css;
+		return preg_replace_callback( self::$patterns['text_shadow3'], fn($matches) => $matches[1] . self::flipSign( $matches[2] ), $css );
 	}
 
 	/**
@@ -415,16 +393,10 @@ class CSSJanus {
 	 * @param string $css
 	 * @return string
 	 */
-	private static function fixTranslate( $css ) {
-		$css = preg_replace_callback( self::$patterns['translate'], function ( $matches ) {
-			return $matches[1] . $matches[2] . self::flipSign( $matches[3] ) . $matches[4];
-		}, $css );
+	private static function fixTranslate( $css ): ?string {
+		$css = preg_replace_callback( self::$patterns['translate'], fn($matches) => $matches[1] . $matches[2] . self::flipSign( $matches[3] ) . $matches[4], $css );
 
-		$css = preg_replace_callback( self::$patterns['translate_x'], function ( $matches ) {
-			return $matches[1] . $matches[2] . self::flipSign( $matches[3] ) . $matches[4];
-		}, $css );
-
-		return $css;
+		return preg_replace_callback( self::$patterns['translate_x'], fn($matches) => $matches[1] . $matches[2] . self::flipSign( $matches[3] ) . $matches[4], $css );
 	}
 
 	/**
@@ -433,7 +405,7 @@ class CSSJanus {
 	 * @return string
 	 */
 	private static function fixBackgroundPosition( $css ) {
-		$callback = static function ( $matches ) {
+		$callback = static function ( $matches ): string {
 			$value = $matches[2];
 			if ( substr( $value, -1 ) === '%' ) {
 				$idx = strpos( $value, '.' );
@@ -461,7 +433,7 @@ class CSSJanus {
 			$css
 		);
 		if ( $replaced !== null ) {
-			$css = $replaced;
+			return $replaced;
 		}
 
 		return $css;
@@ -475,7 +447,7 @@ class CSSJanus {
 class CSSJanusTokenizer {
 	private $regex;
 	private $token;
-	private $originals;
+	private array $originals;
 
 	/**
 	 * Constructor
@@ -494,10 +466,10 @@ class CSSJanusTokenizer {
 	 * @param string $str to tokenize
 	 * @return string Tokenized string
 	 */
-	public function tokenize( $str ) {
+	public function tokenize( $str ): ?string {
 		return preg_replace_callback(
 			$this->regex,
-			function ( $matches ) {
+			function ( array $matches ) {
 				$this->originals[] = $matches[0];
 				return $this->token;
 			},
@@ -511,7 +483,7 @@ class CSSJanusTokenizer {
 	 * @param string $str previously run through tokenize()
 	 * @return string Original string
 	 */
-	public function detokenize( $str ) {
+	public function detokenize( $str ): ?string {
 		// PHP has no function to replace only the first occurrence or to
 		// replace occurrences of the same string with different values,
 		// so we use preg_replace_callback() even though we don't really need a regex
