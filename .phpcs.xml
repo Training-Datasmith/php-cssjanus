@@ -4,6 +4,8 @@
 		<exclude name="MediaWiki.WhiteSpace.SpaceBeforeSingleLineComment.NewLineComment" />
 		<exclude name="MediaWiki.Commenting.PropertyDocumentation.MissingDocumentationPrivate" />
 		<exclude name="Generic.Files.OneObjectStructurePerFile.MultipleFound" />
+		<exclude name="Squiz.Classes.ValidClassName.NotCamelCaps" />
+		<exclude name="MediaWiki.NamingConventions.LowerCamelFunctionsName.FunctionName" />
 	</rule>
 	<!-- RedundantVarName: https://phabricator.wikimedia.org/T278474 -->
 	<rule ref="MediaWiki.Commenting.RedundantVarName.Found">
@@ -13,4 +15,5 @@
 	<arg name="encoding" value="UTF-8"/>
 	<arg name="extensions" value="php"/>
 	<exclude-pattern type="relative">^doc/html/*</exclude-pattern>
+	<exclude-pattern type="relative">^scripts/*</exclude-pattern>
 </ruleset>

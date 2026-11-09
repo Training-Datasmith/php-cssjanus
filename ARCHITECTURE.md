@@ -2,15 +2,15 @@
 
 ## Purpose
 
-A PHP port of Google's CSSJanus tool. Transforms CSS stylesheets from left-to-right (LTR) layout to right-to-left (RTL) layout. Used by MediaWiki and other projects to serve RTL-language users without maintaining duplicate stylesheets.
+A PHP port of the original Google Css_Janus tool. Transforms CSS stylesheets from left-to-right (LTR) layout to right-to-left (RTL) layout. Used by MediaWiki and other projects to serve RTL-language users without maintaining duplicate stylesheets.
 
 ## Directory Structure
 
 ```
 src/
-  CSS_Janus.php   — Contains Css_Janus (transformer) and Css_Janus_Tokenizer (tokenizer helper)
-tests/
-  CSS_Janus_Test.php
+  Css_Janus.php   — Contains Css_Janus (transformer) and Css_Janus_Tokenizer (tokenizer helper)
+test/suites/
+  Css_Janus_Test.php
 ```
 
 ## Key Design Decisions

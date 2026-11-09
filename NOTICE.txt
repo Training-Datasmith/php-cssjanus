@@ -1,4 +1,4 @@
-PHP port of CSSJanus. https://www.mediawiki.org/wiki/CSSJanus
+PHP port of Css_Janus. https://www.mediawiki.org/wiki/CSSJanus
 
 Copyright 2020 Timo Tijhof
 Copyright 2012 Trevor Parscal

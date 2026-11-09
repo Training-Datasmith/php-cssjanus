@@ -1,5 +1,5 @@
 # Doxyfile <https://www.doxygen.nl/manual/config.html>
-PROJECT_NAME           = "CSSJanus"
+PROJECT_NAME           = "Css_Janus"
 PROJECT_BRIEF          = "Convert CSS stylesheets between left-to-right and right-to-left."
 OUTPUT_DIRECTORY       = doc
 JAVADOC_AUTOBRIEF      = YES

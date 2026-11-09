@@ -14,22 +14,31 @@
 			"name": "Timo Tijhof"
 		}
 	],
-	"autoload": {
-		"psr-0": {
-			"": "src/"
+	"repositories": [
+		{
+			"type": "composer",
+			"url": "https://raw.githubusercontent.com/Training-Datasmith/composer-index/remote-test-2026-11-09",
+			"canonical": false
 		}
+	],
+	"autoload": {
+		"classmap": [
+			"src/"
+		]
 	},
 	"require": {
 		"php": ">=7.4.0"
 	},
 	"require-dev": {
-		"mediawiki/mediawiki-codesniffer": "50.0.0",
+		"mediawiki/mediawiki-codesniffer": "50.0.1",
 		"mediawiki/mediawiki-phan-config": "0.20.0",
 		"php-parallel-lint/php-parallel-lint": "1.4.0",
 		"phpunit/phpunit": "10.5.63"
 	},
 	"scripts": {
 		"test": [
+			"php scripts/check-cluster-pins.php",
+			"php scripts/check-rename.php",
 			"parallel-lint . --exclude vendor",
 			"phpunit",
 			"@phpcs",

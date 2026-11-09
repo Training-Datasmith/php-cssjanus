@@ -1,0 +1,6 @@
+Css_Janus_Test::extends PHPUnit\Framework\TestCase
+Css_Janus_Test::test_transform assertEquals
+Css_Janus_Test::provide_data swapLtrRtlInUrl
+Css_Janus_Test::provide_data swapLeftRightInUrl
+Css_Janus::transform::options transformDirInUrl
+Css_Janus::transform::options transformEdgeInUrl
