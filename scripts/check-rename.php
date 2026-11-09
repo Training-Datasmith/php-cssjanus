@@ -93,6 +93,148 @@ function strip_urls( string $text ): string {
 }
 
 /**
+ * @return array<string, array{start: int, end: int}>
+ */
+function function_ranges( string $content ): array {
+	$lines = preg_split( '/\R/', $content ) ?: [];
+	$ranges = [];
+	$current = null;
+	$start = 0;
+	$depth = 0;
+	foreach ( $lines as $i => $line ) {
+		if ( preg_match( '/^\s*(?:public|private|protected|static|\s)*function\s+(\w+)\s*\(/', $line, $match ) ) {
+			if ( $current !== null ) {
+				$ranges[$current] = [ 'start' => $start, 'end' => $i ];
+			}
+			$current = $match[1];
+			$start = $i + 1;
+			$depth = 0;
+		}
+		if ( $current === null ) {
+			continue;
+		}
+		$depth += substr_count( $line, '{' ) - substr_count( $line, '}' );
+		if ( $depth <= 0 && str_contains( $line, '}' ) && $i >= $start ) {
+			$ranges[$current] = [ 'start' => $start, 'end' => $i + 1 ];
+			$current = null;
+		}
+	}
+	if ( $current !== null ) {
+		$ranges[$current] = [ 'start' => $start, 'end' => count( $lines ) ];
+	}
+	return $ranges;
+}
+
+function line_in_function( array $ranges, string $function, int $line ): bool {
+	if ( !isset( $ranges[$function] ) ) {
+		return false;
+	}
+	$range = $ranges[$function];
+	return $line >= $range['start'] && $line <= $range['end'];
+}
+
+function line_in_transform_site( array $ranges, int $line ): bool {
+	if ( !isset( $ranges['transform'] ) ) {
+		return false;
+	}
+	if ( line_in_function( $ranges, 'transform', $line ) ) {
+		return true;
+	}
+	$start = $ranges['transform']['start'];
+	return $line < $start && $line >= $start - 20;
+}
+
+function is_token_allowlisted_at_site(
+	string $file,
+	string $content,
+	int $line,
+	string $line_text,
+	string $token,
+	array $allowlist
+): bool {
+	$basename = basename( $file );
+	$ranges = str_ends_with( $file, '.php' ) ? function_ranges( $content ) : [];
+
+	foreach ( $allowlist as $entry ) {
+		if ( $entry === 'Css_Janus_Test::extends PHPUnit\Framework\TestCase' ) {
+			if ( $basename === 'Css_Janus_Test.php' && $token === 'TestCase'
+				&& preg_match( '/extends\s+PHPUnit\\\\Framework\\\\TestCase/', $line_text ) ) {
+				return true;
+			}
+			continue;
+		}
+		if ( $entry === 'Css_Janus_Test::test_transform assertEquals' ) {
+			if ( $basename === 'Css_Janus_Test.php' && $token === 'assertEquals'
+				&& line_in_function( $ranges, 'test_transform', $line )
+				&& str_contains( $line_text, 'assertEquals' ) ) {
+				return true;
+			}
+			continue;
+		}
+		if ( $entry === 'Css_Janus_Test::test_transform::annotation dataProvider' ) {
+			if ( $basename === 'Css_Janus_Test.php' && $token === 'dataProvider'
+				&& preg_match( '/@dataProvider\s+provide_data/', $line_text ) ) {
+				return true;
+			}
+			continue;
+		}
+		if ( $entry === 'Css_Janus_Test::provide_data swapLtrRtlInUrl' ) {
+			if ( $basename === 'Css_Janus_Test.php' && $token === 'swapLtrRtlInUrl'
+				&& line_in_function( $ranges, 'provide_data', $line ) ) {
+				return true;
+			}
+			continue;
+		}
+		if ( $entry === 'Css_Janus_Test::provide_data swapLeftRightInUrl' ) {
+			if ( $basename === 'Css_Janus_Test.php' && $token === 'swapLeftRightInUrl'
+				&& line_in_function( $ranges, 'provide_data', $line ) ) {
+				return true;
+			}
+			continue;
+		}
+		if ( $entry === 'Css_Janus::transform::options transformDirInUrl' ) {
+			if ( $token !== 'transformDirInUrl' ) {
+				continue;
+			}
+			if ( $basename === 'Css_Janus.php' && line_in_transform_site( $ranges, $line ) ) {
+				return true;
+			}
+			if ( str_contains( $line_text, 'Css_Janus::transform' ) ) {
+				return true;
+			}
+			if ( ( $basename === 'ARCHITECTURE.md' || $basename === 'README.md' )
+				&& str_contains( $line_text, 'options' ) ) {
+				return true;
+			}
+			continue;
+		}
+		if ( $entry === 'Css_Janus::transform::options transformEdgeInUrl' ) {
+			if ( $token !== 'transformEdgeInUrl' ) {
+				continue;
+			}
+			if ( $basename === 'Css_Janus.php' && line_in_transform_site( $ranges, $line ) ) {
+				return true;
+			}
+			if ( str_contains( $line_text, 'Css_Janus::transform' ) ) {
+				return true;
+			}
+			if ( ( $basename === 'ARCHITECTURE.md' || $basename === 'README.md' )
+				&& str_contains( $line_text, 'options' ) ) {
+				return true;
+			}
+			continue;
+		}
+		if ( $entry === 'Css_Janus::build_patterns::regex translateX' ) {
+			if ( $basename === 'Css_Janus.php' && $token === 'translateX'
+				&& preg_match( "/patterns\['translate/", $line_text ) ) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+/**
  * @return list<array{file: string, line: int, token: string, kind: string}>
  */
 function find_old_names( string $file, string $content, array $old_names ): array {
@@ -114,63 +256,12 @@ function find_old_names( string $file, string $content, array $old_names ): arra
 	return $hits;
 }
 
-function is_allowlisted_camel( string $file, string $line, string $token, array $allowlist ): bool {
-	foreach ( $allowlist as $entry ) {
-		$entry = trim( $entry );
-		if ( $entry === '' ) {
-			continue;
-		}
-
-		if ( $entry === 'Css_Janus_Test::extends PHPUnit\Framework\TestCase' ) {
-			if ( $token === 'TestCase' && str_contains( $line, 'PHPUnit\\Framework\\TestCase' ) ) {
-				return true;
-			}
-			continue;
-		}
-		if ( $entry === 'Css_Janus_Test::test_transform assertEquals' ) {
-			if ( $token === 'assertEquals' && str_contains( $line, 'assertEquals' ) ) {
-				return true;
-			}
-			continue;
-		}
-		if ( $entry === 'Css_Janus_Test::provide_data swapLtrRtlInUrl' ) {
-			if ( $token === 'swapLtrRtlInUrl' && str_contains( $line, 'swapLtrRtlInUrl' ) ) {
-				return true;
-			}
-			continue;
-		}
-		if ( $entry === 'Css_Janus_Test::provide_data swapLeftRightInUrl' ) {
-			if ( $token === 'swapLeftRightInUrl' && str_contains( $line, 'swapLeftRightInUrl' ) ) {
-				return true;
-			}
-			continue;
-		}
-		if ( $entry === 'Css_Janus::transform::options transformDirInUrl' ) {
-			if ( $token === 'transformDirInUrl' && str_contains( $line, 'Css_Janus::transform' ) ) {
-				return true;
-			}
-			continue;
-		}
-		if ( $entry === 'Css_Janus::transform::options transformEdgeInUrl' ) {
-			if ( $token === 'transformEdgeInUrl' && str_contains( $line, 'Css_Janus::transform' ) ) {
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
 /**
  * @return list<array{file: string, line: int, token: string, kind: string}>
  */
-function find_camel_case( string $file, string $content ): array {
+function find_camel_case( string $file, string $content, array $allowlist ): array {
 	$hits = [];
 	$lines = preg_split( '/\R/', $content ) ?: [];
-	$third_party_prefixes = [
-		'PHPUnit\\',
-		'PHP_CodeSniffer\\',
-		'Composer\\',
-	];
 
 	foreach ( $lines as $i => $line ) {
 		if ( preg_match_all( '/\b([a-z][a-z0-9]*[A-Z][A-Za-z0-9_]*)\b/', $line, $matches ) ) {
@@ -178,22 +269,7 @@ function find_camel_case( string $file, string $content ): array {
 				if ( strlen( $token ) < 3 ) {
 					continue;
 				}
-				if ( $token === 'TestCase' || $token === 'dataProvider' ) {
-					continue;
-				}
-				if ( in_array( $token, [ 'transformDirInUrl', 'transformEdgeInUrl' ], true )
-					&& str_ends_with( $file, '/Css_Janus.php' ) ) {
-					continue;
-				}
-				foreach ( $third_party_prefixes as $prefix ) {
-					if ( str_starts_with( $line, 'use ' . $prefix ) || str_contains( $line, $prefix . $token ) ) {
-						continue 2;
-					}
-				}
-				if ( preg_match( '/@(covers|dataProvider)\s+' . preg_quote( $token, '/' ) . '\b/', $line ) ) {
-					continue;
-				}
-				if ( str_contains( $token, 'translateX' ) ) {
+				if ( is_token_allowlisted_at_site( $file, $content, $i + 1, $line, $token, $allowlist ) ) {
 					continue;
 				}
 				$hits[] = [
@@ -208,11 +284,35 @@ function find_camel_case( string $file, string $content ): array {
 	return $hits;
 }
 
-function run_allowlist_out_of_site_demo(): bool {
-	$bad_line = '$opts = [\'transformDirInUrl\' => true];';
-	if ( is_allowlisted_camel( 'demo.php', $bad_line, 'transformDirInUrl', [
-		'Css_Janus::transform::options transformDirInUrl',
-	] ) ) {
+function run_allowlist_out_of_site_demo( array $allowlist ): bool {
+	$demo = "<?php\n\$opts = ['transformDirInUrl' => true];\n";
+	$hits = find_camel_case( 'demo.php', $demo, $allowlist );
+	if ( $hits === [] ) {
+		return false;
+	}
+	foreach ( $hits as $hit ) {
+		if ( is_token_allowlisted_at_site(
+			'demo.php',
+			$demo,
+			$hit['line'],
+			"\$opts = ['transformDirInUrl' => true];",
+			$hit['token'],
+			$allowlist
+		) ) {
+			return false;
+		}
+	}
+	return true;
+}
+
+function run_background_position_integer_demo(): bool {
+	$input = '.foo { background-position: 0% 100%; }';
+	$output = Css_Janus::transform( $input );
+	if ( $output !== '.foo { background-position: 100% 100%; }' ) {
+		return false;
+	}
+	// Wrong subtraction (off-by-string) would leave 0% or produce a different value.
+	if ( !preg_match( '/background-position:\s*100%\s+100%/', $output ) ) {
 		return false;
 	}
 	return true;
@@ -258,8 +358,13 @@ if ( !hash_equals( BASELINE_PROVIDER_SHA256, $hash ) ) {
 	exit( 1 );
 }
 
-if ( !run_allowlist_out_of_site_demo() ) {
-	fwrite( STDERR, "check-rename: allowlist out-of-site demo did not reject transformDirInUrl.\n" );
+if ( !run_allowlist_out_of_site_demo( $allowlist ) ) {
+	fwrite( STDERR, "check-rename: allowlist out-of-site demo did not reject transformDirInUrl via find_camel_case.\n" );
+	exit( 1 );
+}
+
+if ( !run_background_position_integer_demo() ) {
+	fwrite( STDERR, "check-rename: background-position integer-percent branch demo failed.\n" );
 	exit( 1 );
 }
 
@@ -276,14 +381,7 @@ foreach ( collect_files( $scan_paths ) as $file ) {
 		$failures[] = $hit;
 	}
 	if ( str_ends_with( $file, '.php' ) ) {
-		foreach ( find_camel_case( $file, $content ) as $hit ) {
-			if ( is_allowlisted_camel( $file, $content, $hit['token'], $allowlist ) ) {
-				continue;
-			}
-			$line = preg_split( '/\R/', $content )[$hit['line'] - 1] ?? '';
-			if ( is_allowlisted_camel( $file, $line, $hit['token'], $allowlist ) ) {
-				continue;
-			}
+		foreach ( find_camel_case( $file, $content, $allowlist ) as $hit ) {
 			$failures[] = $hit;
 		}
 	}
@@ -309,4 +407,5 @@ fwrite( STDOUT, sprintf(
 	BASELINE_ASSERTIONS,
 	BASELINE_GROUPS
 ) );
+fwrite( STDOUT, "check-background-position: integer-percent branch OK (spec: flip background-position percentages, 0% -> 100%).\n" );
 exit( 0 );

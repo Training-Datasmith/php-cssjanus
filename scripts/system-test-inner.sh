@@ -100,6 +100,10 @@ if ! grep -Fxq 'check-baseline: 341 tests, 341 assertions, 43 spec groups.' "${r
     echo 'check-rename: missing baseline success line' >&2
     exit 1
 fi
+if ! grep -Fxq 'check-background-position: integer-percent branch OK (spec: flip background-position percentages, 0% -> 100%).' "${rename_out}"; then
+    echo 'check-rename: missing background-position demo line' >&2
+    exit 1
+fi
 rm -f "${rename_out}"
 
 audit_out="$(mktemp)"
@@ -151,6 +155,7 @@ fi
 rm -f "${phpunit_out}"
 
 phpcs_out="$(mktemp)"
+phpcs_stripped="$(mktemp)"
 set +e
 vendor/bin/phpcs --report=json --no-colors . >"${phpcs_out}" 2>&1
 phpcs_status=$?
@@ -158,13 +163,43 @@ set -e
 cat "${phpcs_out}"
 fail_deprecation_output "phpcs" "${phpcs_out}"
 if [[ ${phpcs_status} -ne 0 ]]; then
+    rm -f "${phpcs_out}" "${phpcs_stripped}"
     exit "${phpcs_status}"
 fi
-if ! grep -E '"totals":\{"errors":0,"warnings":0' "${phpcs_out}" >/dev/null; then
-    echo 'phpcs: totals.errors or totals.warnings not zero in JSON report' >&2
+sed -E 's/\x1b\[[0-9;]*[[:alpha:]]//g' "${phpcs_out}" >"${phpcs_stripped}"
+phpcs_gate="$(mktemp)"
+set +e
+php -r '
+$path = $argv[1];
+$raw = file_get_contents($path);
+if ($raw === false) {
+    fwrite(STDERR, "phpcs gate: could not read report\n");
+    exit(1);
+}
+$data = json_decode($raw, true);
+if (!is_array($data) || !isset($data["totals"])) {
+    fwrite(STDERR, "phpcs gate: invalid JSON report\n");
+    exit(1);
+}
+$errors = (int)($data["totals"]["errors"] ?? -1);
+$warnings = (int)($data["totals"]["warnings"] ?? -1);
+echo "phpcs: {$errors} errors, {$warnings} warnings\n";
+if ($errors !== 0 || $warnings !== 0) {
+    exit(1);
+}
+' "${phpcs_stripped}" | tee "${phpcs_gate}"
+phpcs_gate_status=${PIPESTATUS[0]}
+set -e
+if [[ ${phpcs_gate_status} -ne 0 ]]; then
+    rm -f "${phpcs_out}" "${phpcs_stripped}" "${phpcs_gate}"
+    exit "${phpcs_gate_status}"
+fi
+if ! grep -E '^phpcs: 0 errors, 0 warnings$' "${phpcs_gate}" >/dev/null; then
+    echo 'phpcs: missing anchored success line' >&2
+    rm -f "${phpcs_out}" "${phpcs_stripped}" "${phpcs_gate}"
     exit 1
 fi
-rm -f "${phpcs_out}"
+rm -f "${phpcs_out}" "${phpcs_stripped}" "${phpcs_gate}"
 
 phan_out="$(mktemp)"
 set +e
